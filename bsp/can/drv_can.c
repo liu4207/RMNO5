@@ -3,13 +3,18 @@ extern CAN_HandleTypeDef hcan1;
 extern CAN_HandleTypeDef hcan2;
 extern RC_ctrl_t rc_ctrl;
 uint16_t can_cnt_1 = 0;
-
+int16_t yy;
 // extern gimbal_t gimbal_Yaw, gimbal_Pitch;
 extern chassis_t chassis;
+#define RC_CH_VALUE_OFFSET ((uint16_t)1024)
+
 // extern shooter_t shooter;
 
 float powerdata[4];
 uint16_t pPowerdata[8];
+
+uint8_t rx_data2[8];
+float Yaw_top;
 
 uint16_t setpower = 5500;
 int canerror = 0;
@@ -62,9 +67,9 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) // 接受中断�
   {
     uint8_t rx_data[8];
     HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data); // receive can1 data
-    if (rx_header.StdId == 0x55)                                   // 上C向下C传IMU数据
-    {
-    }
+    // if (rx_header.StdId == 0x55)                                   // 上C向下C传IMU数据
+    // {
+    // }
 
     // 云台电机信息接收
     // if (rx_header.StdId == 0x209) // 判断标识符，标识符为0x204+ID
@@ -99,10 +104,16 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) // 接受中断�
     }
   }
   // 电机信息接收
-  if (hcan->Instance == CAN2)
+  if (hcan->Instance == CAN1)
   {
     uint8_t rx_data[8];
     HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data); // receive can2 data
+        if (rx_header.StdId == 0x55) // 接收下C板传来的IMU数据
+    {
+      Yaw_top = (int16_t)((rx_data[0] << 8) | rx_data[1]);   // yaw
+      // INS_bottom.Roll = (int16_t)((rx_data[2] << 8) | rx_data[3]);  // roll（roll和pitch根据c放置位置不同可能交换）
+      // INS_bottom.Pitch = (int16_t)((rx_data[4] << 8) | rx_data[5]); // pitch
+    }
     // 發射機構电机信息接收
     // if ((rx_header.StdId >= 0x205)     // 205-208
     //     && (rx_header.StdId <= 0x208)) // 判断标识符，标识符为0x200+ID
@@ -125,8 +136,13 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) // 接受中断�
     //   gimbal_Pitch.motor_info.torque_current = ((rx_data[4] << 8) | rx_data[5]);
     //   gimbal_Pitch.motor_info.temp = rx_data[6];
     // }
-  if (rx_header.StdId == 0x55)                                   // 上C向下C传IMU数据
+  if (rx_header.StdId == 0x35)                                   // 上C向下C传IMU数据
     {
+            // rc_ctrl.rc.ch[4] = ((rx_data[0] | (rx_data[1] << 8)) & 0x07ff) - RC_CH_VALUE_OFFSET;
+
+            yy = (((rx_data[0] << 8) | rx_data[1])); // yaw
+           Yaw_top = yy / 100.0f;
+
     }
     
     if (rx_header.StdId == 0x211)

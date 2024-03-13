@@ -22,6 +22,9 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "drv_usart.h"
+#include "JY901.h"
+#include "usart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -56,6 +59,7 @@
 
 /* External variables --------------------------------------------------------*/
 extern CAN_HandleTypeDef hcan1;
+extern CAN_HandleTypeDef hcan2;
 extern DMA_HandleTypeDef hdma_uart4_rx;
 extern DMA_HandleTypeDef hdma_uart4_tx;
 extern DMA_HandleTypeDef hdma_usart1_rx;
@@ -273,6 +277,7 @@ void USART1_IRQHandler(void)
 void USART3_IRQHandler(void)
 {
   /* USER CODE BEGIN USART3_IRQn 0 */
+  DRV_USART3_IRQHandler(&huart3);
 
   /* USER CODE END USART3_IRQn 0 */
   HAL_UART_IRQHandler(&huart3);
@@ -287,6 +292,24 @@ void USART3_IRQHandler(void)
 void UART4_IRQHandler(void)
 {
   /* USER CODE BEGIN UART4_IRQn 0 */
+uint32_t temp_flag = 0;
+	uint32_t temp;
+	temp_flag = __HAL_UART_GET_FLAG(&huart4,UART_FLAG_IDLE);
+	if((temp_flag!=RESET))																
+	{ 
+			__HAL_UART_CLEAR_IDLEFLAG(&huart4);
+			temp = huart4.Instance->SR;   										
+			temp = huart4.Instance->DR; 										
+			HAL_UART_DMAStop(&huart4);   									
+			temp = hdma_uart4_rx.Instance->NDTR; 	
+			
+				JY901_data.Rx_len = RXBUFFER_LEN-temp;  				
+			JY901_Process();										
+			JY901_data.Rx_flag = 1;  
+			//JY901_Process();									
+			 											
+	}
+	HAL_UART_Receive_DMA(&huart4,JY901_data.RxBuffer,RXBUFFER_LEN);
 
   /* USER CODE END UART4_IRQn 0 */
   HAL_UART_IRQHandler(&huart4);
@@ -307,6 +330,20 @@ void DMA2_Stream2_IRQHandler(void)
   /* USER CODE BEGIN DMA2_Stream2_IRQn 1 */
 
   /* USER CODE END DMA2_Stream2_IRQn 1 */
+}
+
+/**
+  * @brief This function handles CAN2 RX0 interrupt.
+  */
+void CAN2_RX0_IRQHandler(void)
+{
+  /* USER CODE BEGIN CAN2_RX0_IRQn 0 */
+
+  /* USER CODE END CAN2_RX0_IRQn 0 */
+  HAL_CAN_IRQHandler(&hcan2);
+  /* USER CODE BEGIN CAN2_RX0_IRQn 1 */
+
+  /* USER CODE END CAN2_RX0_IRQn 1 */
 }
 
 /**

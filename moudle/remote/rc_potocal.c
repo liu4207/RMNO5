@@ -4,7 +4,8 @@
 //底盘电机结构体
 extern motor_info_t  motor_info_chassis[8];
 int16_t Rotate_w;
-
+float yaw;
+extern float Yaw;
 //IMU
 // extern ins_data_t ins_data;
 // flag for keyboard
@@ -66,8 +67,11 @@ RC_ctrl_t rc_ctrl;
 		
 		temp_remote[0]=rxBuf[16];
 		temp_remote[1]=rxBuf[17];
-		temp_remote[2]=rxBuf[18];
-		
+		// temp_remote[2]=rxBuf[18];
+			yaw = 100 * Yaw; // 使之接收带上小数点
+
+			temp_remote[2] = ((int)yaw >> 8) & 0xff;
+	temp_remote[3] = (int)yaw & 0xff;
 		// //crul_w用来传递底盘旋转量
 		// Rotate_w = (motor_info_chassis[0].rotor_speed + motor_info_chassis[1].rotor_speed + motor_info_chassis[2].rotor_speed + motor_info_chassis[3].rotor_speed)/(4*19);
 		// temp_remote[3]=( (Rotate_w>>8) & 0xff);//先发高8位
@@ -79,7 +83,7 @@ RC_ctrl_t rc_ctrl;
 		
 		// temp_remote[7]=0;
 
-		// can_remote(temp_remote,0x35);
+		can_remote(temp_remote,0x35);
     
 
 //Some flag of keyboard

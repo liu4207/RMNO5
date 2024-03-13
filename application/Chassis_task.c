@@ -4,6 +4,8 @@
 #include "exchange.h"
 #include "drv_can.h"
 // #include "imu_task.h"
+#include "imu_task.h"
+#include "JY901.h"
 #include "JY901.h"
 #include "usart.h"
 #define KEY_START_OFFSET 3
@@ -23,7 +25,9 @@ pid_struct_t pid_yaw_speed;
 #define chassis_speed_max 2000
 extern float Yaw;
 // float yaw;
-// extern float Yaw ;
+extern float Yaw_top ;//float Yaw_top;
+float Yaw_update;
+float Yaw_init;
 int yaw_correction_flag = 1; // yaw值校正标志
 
 pid_struct_t supercap_pid;
@@ -31,7 +35,7 @@ motor_info_t motor_info_chassis[10]; // 电机信息结构体
 fp32 superpid[3] = {120, 0.1, 0};
 
 int8_t chassis_mode;
-
+float relative_yaw = 0;
 extern RC_ctrl_t rc_ctrl; // 遥控器信息结构体
 extern float powerdata[4];
 extern uint16_t shift_flag;
@@ -43,13 +47,13 @@ static void Chassis_Init();
 static void Chassis_loop_Init();
 
 // 模式选择
-// static void mode_chooce();
+static void mode_chooce();
 
 // 遥控器控制底盘电机
 static void RC_Move(void);
 
 // 小陀螺模式
-// static void gyroscope(void);
+static void gyroscope(void);
 
 // 速度限制函数
 static void Motor_Speed_limiting(volatile int16_t *motor_speed, int16_t limit_speed);
@@ -60,28 +64,30 @@ static void chassis_current_give();
 // 运动解算
 static void chassis_motol_speed_calculate();
 
-// static void chassis_follow();
+static void chassis_follow();
 
-// static void yaw_correct();
+static void yaw_correct();
 
 void Chassis_task(void const *pvParameters)
 {
   Chassis_Init();
+  imu_task_init();
   // imu_task();
  for (;;) // 底盘运动任务
   {
     Chassis_loop_Init();
 
-    // yaw_correct(); // 校准
+    yaw_correct(); // 校准
 
     // 选择底盘运动模式
-    // mode_chooce();
+    mode_chooce();
 
     // 电机速度解算
     chassis_motol_speed_calculate();
 
     // 电机电流控制
     chassis_current_give();
+    imu_task();
     osDelay(1);
   }
 }
@@ -124,30 +130,32 @@ static void mode_chooce()
 
   if (rc_ctrl.rc.s[0] == 1)
   {
-    // LEDB_ON(); // BLUE LED
-    // LEDR_OFF();
-    // LEDG_OFF();
+  //   // LEDB_ON(); // BLUE LED
+  //   // LEDR_OFF();
+  //   // LEDG_OFF();
     gyroscope();
   }
   else if (rc_ctrl.rc.s[0] == 2)
   {
-    // LEDG_ON(); // GREEN LED
-    // LEDR_OFF();
-    // LEDB_OFF();
+  //   // LEDG_ON(); // GREEN LED
+  //   // LEDR_OFF();
+  //   // LEDB_OFF();
+  chassis_follow();
+
   }
   else if (rc_ctrl.rc.s[0] == 3)
   {
-    // LEDR_ON(); // RED LED
-    // LEDB_OFF();
-    // LEDG_OFF();
+  //   // LEDR_ON(); // RED LED
+  //   // LEDB_OFF();
+  //   // LEDG_OFF();
     RC_Move();
   }
-  else
-  {
-    // LEDR_OFF();
-    // LEDB_OFF();
-    // LEDG_OFF();
-  }
+  // else
+  // {
+  //   // LEDR_OFF();
+  //   // LEDB_OFF();
+  //   // LEDG_OFF();
+  // }
 }
 
 // // 运动解算
@@ -155,10 +163,15 @@ static void chassis_motol_speed_calculate()
 {
 
   // 根据分解的速度调整电机速度目标
-  chassis.speed_target[CHAS_LF] = -chassis.Wz + chassis.Vx - chassis.Vy;
-  chassis.speed_target[CHAS_RF] = -chassis.Wz - chassis.Vx - chassis.Vy;
-  chassis.speed_target[CHAS_RB] = -chassis.Wz + chassis.Vx + chassis.Vy;
-  chassis.speed_target[CHAS_LB] = -chassis.Wz - chassis.Vx + chassis.Vy;
+  // chassis.speed_target[CHAS_LF] = 3*(-chassis.Wz)*0.4 + chassis.Vx + chassis.Vy;
+  // chassis.speed_target[CHAS_RF] = 3*(-chassis.Wz)*0.4 + chassis.Vx - chassis.Vy;
+  // chassis.speed_target[CHAS_RB] = 3*(-chassis.Wz)*0.4 - chassis.Vx - chassis.Vy;
+  // chassis.speed_target[CHAS_LB] = 3*(-chassis.Wz)*0.4 - chassis.Vx + chassis.Vy;
+
+    chassis.speed_target[CHAS_LF] = 3*(-chassis.Wz)*0.4 + chassis.Vx - chassis.Vy;
+  chassis.speed_target[CHAS_RF] = 3*(-chassis.Wz)*0.4 - chassis.Vx - chassis.Vy;
+  chassis.speed_target[CHAS_RB] = 3*(-chassis.Wz)*0.4 + chassis.Vx + chassis.Vy;
+  chassis.speed_target[CHAS_LB] = 3*(-chassis.Wz)*0.4 - chassis.Vx + chassis.Vy;
 }
 // 运动解算
 // 速度限制函数
@@ -228,66 +241,65 @@ static void RC_Move(void)
   chassis.Wz = map_range(chassis.Wz, RC_MIN, RC_MAX, motor_min, motor_max);
 }
 
-// // 小陀螺模式
-// static void gyroscope(void)
-// {
+// 小陀螺模式
+static void gyroscope(void)
+{
 
-//   chassis.Wz = 2000;
-//   chassis.Vx = rc_ctrl.rc.ch[3]; // 前后输入
-//   chassis.Vy = rc_ctrl.rc.ch[2]; // 左右输入
-//   /*************记得加上线性映射***************/
-//   chassis.Vx = map_range(chassis.Vx, RC_MIN, RC_MAX, motor_min, motor_max);
-//   chassis.Vy = map_range(chassis.Vy, RC_MIN, RC_MAX, motor_min, motor_max);
-//   int16_t Temp_Vx = chassis.Vx;
-//   int16_t Temp_Vy = chassis.Vy;
-//   float relative_yaw = 0;
-//   //  relative_yaw = INS.Yaw - INS_top.Yaw;//改变量 这里是下面的减去上面的 但是按照五号的来 需要下面的陀螺仪减去上面的c板
-//   //  relative_yaw = Yaw - INS.Yaw; //暂时没有加陀螺仪代码 需要改
-//   relative_yaw = -relative_yaw / 57.3f; // 此处加负是因为旋转角度后，旋转方向相反
-//   chassis.Vx = cos(relative_yaw) * Temp_Vx - sin(relative_yaw) * Temp_Vy;
-//   chassis.Vy = sin(relative_yaw) * Temp_Vx + cos(relative_yaw) * Temp_Vy;
-// }
-// // 底盘跟随云台
-// static void chassis_follow(void)
-// {
+  chassis.Wz = 500;
+  chassis.Vx = rc_ctrl.rc.ch[3]; // 前后输入
+  chassis.Vy = rc_ctrl.rc.ch[2]; // 左右输入
+  /*************记得加上线性映射***************/
+  chassis.Vx = map_range(chassis.Vx, RC_MIN, RC_MAX, motor_min, motor_max);
+  chassis.Vy = map_range(chassis.Vy, RC_MIN, RC_MAX, motor_min, motor_max);
+  int16_t Temp_Vx = chassis.Vx;
+  int16_t Temp_Vy = chassis.Vy;
+  //  relative_yaw = Yaw - INS_top.Yaw;//改变量 这里是下面的减去上面的 但是按照五号的来 需要下面的陀螺仪减去上面的c板
+   relative_yaw = Yaw - Yaw_top; //暂时没有加陀螺仪代码 需要改
+  relative_yaw = -relative_yaw / 57.3f; // 此处加负是因为旋转角度后，旋转方向相反
+  chassis.Vx = cos(relative_yaw) * Temp_Vx - sin(relative_yaw) * Temp_Vy;
+  chassis.Vy = sin(relative_yaw) * Temp_Vx + cos(relative_yaw) * Temp_Vy;
+}
+// 底盘跟随云台
+static void chassis_follow(void)
+{
 
-//   chassis.Vx = rc_ctrl.rc.ch[3]; // 前后输入
-//   chassis.Vy = rc_ctrl.rc.ch[2]; // 左右输入
-//   chassis.Wz = rc_ctrl.rc.ch[4]; // 旋转输入
-//   /*************记得加上线性映射***************/
-//   chassis.Vx = map_range(chassis.Vx, RC_MIN, RC_MAX, motor_min, motor_max);
-//   chassis.Vy = map_range(chassis.Vy, RC_MIN, RC_MAX, motor_min, motor_max);
+  chassis.Vx = rc_ctrl.rc.ch[3]; // 前后输入
+  chassis.Vy = rc_ctrl.rc.ch[2]; // 左右输入
+  chassis.Wz = rc_ctrl.rc.ch[4]; // 旋转输入
+  /*************记得加上线性映射***************/
+  chassis.Vx = map_range(chassis.Vx, RC_MIN, RC_MAX, motor_min, motor_max);
+  chassis.Vy = map_range(chassis.Vy, RC_MIN, RC_MAX, motor_min, motor_max);
 
-//   int16_t relative_yaw = Yaw - INS.Yaw_update; // 最新的减去上面的
-//   // int16_t relative_yaw = INS.Yaw_update;
-//   int16_t yaw_speed = pid_calc(&pid_yaw_angle, 0, relative_yaw);
-//   int16_t rotate_w = (chassis.motor_info[0].rotor_speed + chassis.motor_info[1].rotor_speed + chassis.motor_info[2].rotor_speed + chassis.motor_info[3].rotor_speed) / (4 * 19);
-//   // 消除静态旋转
-//   if (relative_yaw > -2 && relative_yaw < 2)
-//   {
-//     chassis.Wz = 0;
-//   }
-//   else
-//   {
-//     chassis.Wz = pid_calc(&pid_yaw_speed, yaw_speed, rotate_w);
-//   }
-//   int16_t Temp_Vx = chassis.Vx;
-//   int16_t Temp_Vy = chassis.Vy;
+  // int16_t relative_yaw = Yaw - INS.Yaw_update; // 最新的减去上面的
+  int16_t relative_yaw = Yaw_update-Yaw_top;
+  int16_t yaw_speed = pid_calc(&pid_yaw_angle, 0, relative_yaw);
+  int16_t rotate_w = (chassis.motor_info[0].rotor_speed + chassis.motor_info[1].rotor_speed + chassis.motor_info[2].rotor_speed + chassis.motor_info[3].rotor_speed) / (4 * 19);
+  // 消除静态旋转
+  if (relative_yaw > -2 && relative_yaw < 2)
+  {
+    chassis.Wz = 0;
+  }
+  else
+  {
+    chassis.Wz = pid_calc(&pid_yaw_speed, yaw_speed, rotate_w);
+  }
+  int16_t Temp_Vx = chassis.Vx;
+  int16_t Temp_Vy = chassis.Vy;
 
-//   chassis.Vx = cos(-relative_yaw / 57.3f) * Temp_Vx - sin(-relative_yaw / 57.3f) * Temp_Vy;
-//   chassis.Vy = sin(-relative_yaw / 57.3f) * Temp_Vx + cos(-relative_yaw / 57.3f) * Temp_Vy;
-// }
+  chassis.Vx = cos(-relative_yaw / 57.3f) * Temp_Vx - sin(-relative_yaw / 57.3f) * Temp_Vy;
+  chassis.Vy = sin(-relative_yaw / 57.3f) * Temp_Vx + cos(-relative_yaw / 57.3f) * Temp_Vy;
+}
 // /*************************yaw值校正*******************************/
-// static void yaw_correct(void)
-// {
-//   // 只执行一次
-//   if (yaw_correction_flag)
-//   {
-//     yaw_correction_flag = 0;
-//     INS.Yaw_init = INS.Yaw;
-//   }
-//   INS.Yaw_update = INS.Yaw - INS.Yaw_init;
-// }
+static void yaw_correct(void)
+{
+  // 只执行一次
+  if (yaw_correction_flag)
+  {
+    yaw_correction_flag = 0;
+    Yaw_init = Yaw;
+  }
+  Yaw_update = Yaw - Yaw_init;
+}
 /*************************** 键盘控制函数 ************************/
 static void key_control(void)
 {

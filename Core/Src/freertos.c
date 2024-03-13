@@ -50,12 +50,12 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+osThreadId exchangeTaskHandle;
+osThreadId Chassis_taskHandle;
+// osThreadId Gimbal_taskHandle;
 
 /* USER CODE END Variables */
-osThreadId Chassis_taskHandle;
 osThreadId defaultTaskHandle;
-// osThreadId Gimbal_taskHandle;
-osThreadId exchangeTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -118,9 +118,10 @@ void MX_FREERTOS_Init(void) {
     osThreadDef(Chassistask, Chassis_task, osPriorityRealtime, 0, 512); // �����ƶ�����
   Chassis_taskHandle = osThreadCreate(osThread(Chassistask), NULL);
 
-  //   osThreadDef(exchangeTask, exchange_task, osPriorityNormal, 0, 128);
-  // exchangeTaskHandle = osThreadCreate(osThread(exchangeTask), NULL);
-
+    osThreadDef(exchangeTask, exchange_task, osPriorityNormal, 0, 128);
+  exchangeTaskHandle = osThreadCreate(osThread(exchangeTask), NULL);
+  // osThreadDef(GimbalTask, Gimbal_task, osPriorityRealtime, 0, 512);
+  // Gimbal_taskHandle = osThreadCreate(osThread(GimbalTask), NULL);
 
   /* USER CODE END RTOS_THREADS */
 

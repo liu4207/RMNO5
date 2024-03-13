@@ -26,7 +26,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "drv_can.h"
+#include "drv_usart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,10 +95,13 @@ int main(void)
   MX_CAN1_Init();
   MX_CAN2_Init();
   MX_UART4_Init();
-  MX_USART3_UART_Init();
   MX_USART1_UART_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-   USART3_Init();
+    USART3_Init();
+    CAN1_Init();
+    CAN2_Init();
+
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in freertos.c) */
