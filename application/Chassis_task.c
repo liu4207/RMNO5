@@ -24,11 +24,11 @@ float pid_yaw_angle_value[3];
 float pid_yaw_speed_value[3];
 chassis_t chassis;
 // extern INS_t INS;
-// pid_struct_t pid_yaw_angle;
-// pid_struct_t pid_yaw_speed;
+pid_struct_t pid_yaw_angle;
+pid_struct_t pid_yaw_speed;
 #define chassis_speed_max 2000
 float Yaw;
-extern float yaw12;
+extern double yaw12;
 // float yaw;
 extern float Yaw_top ;//float Yaw_top;
 float Yaw_update;
@@ -40,7 +40,7 @@ motor_info_t motor_info_chassis[10]; // 电机信息结构体
 fp32 superpid[3] = {120, 0.1, 0};
 
 int8_t chassis_mode;
-float relative_yaw = 0;
+float relative_yaw;
 extern RC_ctrl_t rc_ctrl; // 遥控器信息结构体
 extern float powerdata[4];
 extern uint16_t shift_flag;
@@ -259,19 +259,22 @@ static void gyroscope(void)
   chassis.Vx = map_range(rc_ctrl.rc.ch[3], RC_MIN, RC_MAX, motor_min, motor_max);
   chassis.Vy = map_range(rc_ctrl.rc.ch[2], RC_MIN, RC_MAX, motor_min, motor_max);
   // int16_t Temp_Vx = chassis.Vx;
-  // int test111=cos(1);
   // int16_t Temp_Vy = chassis.Vy;
   //  relative_yaw = Yaw - INS_top.Yaw;//改变量 这里是下面的减去上面的 但是按照五号的来 需要下面的陀螺仪减去上面的c板
-   relative_yaw = yaw12 - Yaw_top; //暂时没有加陀螺仪代码 需要改
-  relative_yaw = -relative_yaw / 57.3f; // 此处加负是因为旋转角度后，旋转方向相反
+  //  relative_yaw = yaw12 - Yaw_top; //暂时没有加陀螺仪代码 需要改
+  // relative_yaw = -(yaw12 - Yaw_top) ; // 此处加负是因为旋转角度后，旋转方向相反
+    relative_yaw = (yaw12 - Yaw_top) / 57.3f; // 此处加负是因为旋转角度后，旋转方向相反
+
   // chassis.Vx = cosf(relative_yaw) * Temp_Vx - sinf(relative_yaw) * Temp_Vy;
   // chassis.Vy = sinf(relative_yaw) * Temp_Vx + cosf(relative_yaw) * Temp_Vy;
 
 
   int16_t temp_Vx = 0;
   int16_t temp_Vy = 0;
-  temp_Vx = chassis.Vx * cosf(relative_yaw) - chassis.Vy * sinf(relative_yaw);
-  temp_Vy = chassis.Vx * sinf(relative_yaw) + chassis.Vy * cosf(relative_yaw);
+  //  temp_Vx = chassis.Vx * cosf(0) - chassis.Vy * sinf(0);
+  // temp_Vy = chassis.Vx * sinf(0) + chassis.Vy * cosf(0);
+  temp_Vx = chassis.Vx * cosf(((yaw12 - Yaw_top))/ 57.3f) - chassis.Vy * sinf(((yaw12 - Yaw_top))/ 57.3f);
+  temp_Vy = chassis.Vx * sinf(((yaw12 - Yaw_top))/ 57.3f) + chassis.Vy * cosf(((yaw12 - Yaw_top))/ 57.3f);
   chassis.Vx = temp_Vx;
   chassis.Vy = temp_Vy;
 
@@ -284,13 +287,13 @@ static void chassis_follow(void)
 
   chassis.Vx = rc_ctrl.rc.ch[3]; // 前后输入
   chassis.Vy = rc_ctrl.rc.ch[2]; // 左右输入
-  chassis.Wz = rc_ctrl.rc.ch[4]; // 旋转输入
+  // chassis.Wz = rc_ctrl.rc.ch[4]; // 旋转输入
   /*************记得加上线性映射***************/
   chassis.Vx = map_range(chassis.Vx, RC_MIN, RC_MAX, motor_min, motor_max);
   chassis.Vy = map_range(chassis.Vy, RC_MIN, RC_MAX, motor_min, motor_max);
 
   // int16_t relative_yaw = Yaw - INS.Yaw_update; // 最新的减去上面的
-  int16_t relative_yaw = Yaw_update-Yaw_top;
+ relative_yaw = Yaw_update-Yaw_top;
   int16_t yaw_speed = pid_calc(&pid_yaw_angle, 0, relative_yaw);
   int16_t rotate_w = (chassis.motor_info[0].rotor_speed + chassis.motor_info[1].rotor_speed + chassis.motor_info[2].rotor_speed + chassis.motor_info[3].rotor_speed) / (4 * 19);
   // 消除静态旋转
@@ -305,8 +308,8 @@ static void chassis_follow(void)
   int16_t Temp_Vx = chassis.Vx;
   int16_t Temp_Vy = chassis.Vy;
 
-  chassis.Vx = cos(-relative_yaw / 57.3f) * Temp_Vx - sin(-relative_yaw / 57.3f) * Temp_Vy;
-  chassis.Vy = sin(-relative_yaw / 57.3f) * Temp_Vx + cos(-relative_yaw / 57.3f) * Temp_Vy;
+  chassis.Vx = cos(relative_yaw / 57.3f) * Temp_Vx - sin(relative_yaw / 57.3f) * Temp_Vy;
+  chassis.Vy = sin(relative_yaw / 57.3f) * Temp_Vx + cos(relative_yaw / 57.3f) * Temp_Vy;
 }
 // /*************************yaw值校正*******************************/
 static void yaw_correct(void)
