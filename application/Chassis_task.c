@@ -69,6 +69,8 @@ static void chassis_current_give();
 // 运动解算
 static void chassis_motol_speed_calculate();
 
+static void detel_calc(fp32 *angle);
+
 static void chassis_follow();
 
 static void yaw_correct();
@@ -147,15 +149,15 @@ static void mode_chooce()
     // LEDG_ON(); // GREEN LED
     // LEDR_OFF();
     // LEDB_OFF();
-  chassis_follow();
-
+    RC_Move();
   }
   else if (rc_ctrl.rc.s[0] == 3)
   {
     // LEDR_ON(); // RED LED
     // LEDB_OFF();
     // LEDG_OFF();
-    RC_Move();
+  chassis_follow();
+
   }
   // else
   // {
@@ -294,22 +296,29 @@ static void chassis_follow(void)
 
   // int16_t relative_yaw = Yaw - INS.Yaw_update; // 最新的减去上面的
  relative_yaw = Yaw_update-Yaw_top;
-  int16_t yaw_speed = pid_calc(&pid_yaw_angle, 0, relative_yaw);
-  int16_t rotate_w = (chassis.motor_info[0].rotor_speed + chassis.motor_info[1].rotor_speed + chassis.motor_info[2].rotor_speed + chassis.motor_info[3].rotor_speed) / (4 * 19);
+  // int16_t yaw_speed = pid_calc(&pid_yaw_angle, 0, relative_yaw);
+  // int16_t rotate_w = (chassis.motor_info[0].rotor_speed + chassis.motor_info[1].rotor_speed + chassis.motor_info[2].rotor_speed + chassis.motor_info[3].rotor_speed) / (4 * 19);
   // 消除静态旋转
-  if (relative_yaw > -2 && relative_yaw < 2)
+  if (relative_yaw > -5 && relative_yaw < 5)
   {
     chassis.Wz = 0;
   }
   else
   {
-    chassis.Wz = pid_calc(&pid_yaw_speed, yaw_speed, rotate_w);
+        detel_calc(&relative_yaw);
+        chassis.Wz = -relative_yaw*80;
+    // chassis.Wz = pid_calc(&pid_yaw_speed, yaw_speed, rotate_w);
+
+    if(chassis.Wz > 3000)
+    chassis.Wz = 3000;
+    if(chassis.Wz < -3000)
+    chassis.Wz = -3000;
   }
   int16_t Temp_Vx = chassis.Vx;
   int16_t Temp_Vy = chassis.Vy;
 
-  chassis.Vx = cos(relative_yaw / 57.3f) * Temp_Vx - sin(relative_yaw / 57.3f) * Temp_Vy;
-  chassis.Vy = sin(relative_yaw / 57.3f) * Temp_Vx + cos(relative_yaw / 57.3f) * Temp_Vy;
+  chassis.Vx = cos(-relative_yaw / 57.3f) * Temp_Vx - sin(-relative_yaw / 57.3f) * Temp_Vy;
+  chassis.Vy = sin(-relative_yaw / 57.3f) * Temp_Vx + cos(-relative_yaw / 57.3f) * Temp_Vy;
 }
 // /*************************yaw值校正*******************************/
 static void yaw_correct(void)
@@ -358,4 +367,19 @@ static void key_control(void)
     key_y_slow = chassis_speed_max;
   if (key_y_slow < 0)
     key_y_slow = 0;
+}
+
+static void detel_calc(fp32 *angle)
+{
+  // 如果角度大于180度，则减去360度
+  if (*angle > 180)
+  {
+    *angle -= 360;
+  }
+
+  // 如果角度小于-180度，则加上360度
+  else if (*angle < -180)
+  {
+    *angle += 360;
+  }
 }
