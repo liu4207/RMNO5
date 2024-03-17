@@ -299,7 +299,34 @@ void OTG_FS_IRQHandler(void)
   /* USER CODE END OTG_FS_IRQn 0 */
   HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS);
   /* USER CODE BEGIN OTG_FS_IRQn 1 */
+  // ************************************************//
+  //*************写这个的意义在于每次重新刷新cubemx后最后两个函数会自动消失 这样方便重新加回来 否则bmi088不会返回数据***************
+// void EXTI2_IRQHandler(void)
+// {
+//   /* USER CODE BEGIN EXTI4_IRQn 0 */
 
+//   /* USER CODE END EXTI4_IRQn 0 */
+//   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
+//   /* USER CODE BEGIN EXTI4_IRQn 1 */
+
+//   /* USER CODE END EXTI4_IRQn 1 */
+// }
+
+// /**
+//   * @brief This function handles EXTI line[9:5] interrupts.
+//   */
+// void EXTI3_IRQHandler(void)
+// {
+//   /* USER CODE BEGIN EXTI9_5_IRQn 0 */
+
+//   /* USER CODE END EXTI9_5_IRQn 0 */
+//   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
+//   /* USER CODE BEGIN EXTI9_5_IRQn 1 */
+
+//   /* USER CODE END EXTI9_5_IRQn 1 */
+// }
+// /* USER CODE END 1 */
+//***********************************************************************************************//
   /* USER CODE END OTG_FS_IRQn 1 */
 }
 

@@ -53,25 +53,26 @@ RC_ctrl_t rc_ctrl;
     rc_ctrl.rc.ch[2]-=RC_CH_VALUE_OFFSET;
     rc_ctrl.rc.ch[3]-=RC_CH_VALUE_OFFSET;
     rc_ctrl.rc.ch[4]-=RC_CH_VALUE_OFFSET;
+	//遥控
 		for(int i=0;i<=7;i++)
 		{
 			temp_remote[i]=rxBuf[i];//volatile const uint8_t和uint8_t不一样不能直接带入can_remote这个函数
 		}
 		can_remote(temp_remote,0x33);
-		
+	//键鼠
 		for(int i=8;i<=15;i++)
 		{
 			temp_remote[i-8]=rxBuf[i];//volatile const uint8_t和uint8_t不一样不能直接带入can_remote这个函数
 		}
 		can_remote(temp_remote,0x34);
-		
+	//零碎	
 		temp_remote[0]=rxBuf[16];
 		temp_remote[1]=rxBuf[17];
 		// temp_remote[2]=rxBuf[18];
 			yaw = 100 * Yaw; // 使之接收带上小数点
 
-			temp_remote[2] = ((int)yaw >> 8) & 0xff;
-	temp_remote[3] = (int)yaw & 0xff;
+		temp_remote[2] = ((int)yaw >> 8) & 0xff;
+		temp_remote[3] = (int)yaw & 0xff;
 		// //crul_w用来传递底盘旋转量
 		// Rotate_w = (motor_info_chassis[0].rotor_speed + motor_info_chassis[1].rotor_speed + motor_info_chassis[2].rotor_speed + motor_info_chassis[3].rotor_speed)/(4*19);
 		// temp_remote[3]=( (Rotate_w>>8) & 0xff);//先发高8位
@@ -82,7 +83,10 @@ RC_ctrl_t rc_ctrl;
 		// temp_remote[6]=(int)ins_data.angle[1] & 0xff;
 		
 		// temp_remote[7]=0;
-
+		temp_remote[4] = 0;
+		temp_remote[5] = 0;
+		temp_remote[6] = 0;
+		temp_remote[7] = 0;
 		can_remote(temp_remote,0x35);
     
 

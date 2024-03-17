@@ -12,8 +12,10 @@
 #include "arm_math.h"
 #include "struct_typedef.h"
 
-#define KEY_START_OFFSET 3
+#define KEY_START_OFFSET 10
 #define KEY_STOP_OFFSET 20
+#define CHASSIS_WZ_MAX 3000
+
 #define RC_MAX 660
 #define RC_MIN -660
 #define motor_max 2000
@@ -40,16 +42,20 @@ motor_info_t motor_info_chassis[10]; // 电机信息结构体
 fp32 superpid[3] = {120, 0.1, 0};
 
 int8_t chassis_mode;
+uint8_t supercap_flag = 0;         
 float relative_yaw;
 extern RC_ctrl_t rc_ctrl; // 遥控器信息结构体
 extern float powerdata[4];
 extern uint16_t shift_flag;
-static int16_t key_x_fast, key_y_fast, key_x_slow, key_y_slow;
+static int16_t key_x_fast, key_y_fast, key_x_slow, key_y_slow, key_Wz_acw, key_Wz_cw;
 uint8_t rc[18];
 
 static void Chassis_Init();
 
 static void Chassis_loop_Init();
+
+// 读取键鼠数据控制底盘模式
+static void read_keyboard(void);
 
 // 模式选择
 static void mode_chooce();
@@ -75,6 +81,8 @@ static void chassis_follow();
 
 static void yaw_correct();
 
+static void key_control();
+
 void Chassis_task(void const *pvParameters)
 {
   Chassis_Init();
@@ -85,6 +93,9 @@ void Chassis_task(void const *pvParameters)
     Chassis_loop_Init();
 
     yaw_correct(); // 校准
+    
+    //读取底盘
+    read_keyboard();
 
     // 选择底盘运动模式
     mode_chooce();
@@ -127,7 +138,20 @@ static void Chassis_loop_Init()
   pid_yaw_speed_value[1] = 0;
   pid_yaw_speed_value[2] = 0;
 }
+/*嘿嘿 */
+static void read_keyboard(void)
+{
+  if (r_flag)
+    chassis_mode = 1;
+  else if (f_flag)
+    chassis_mode = 2;
 
+  if (x_flag)
+    supercap_flag = 0;
+  else if (c_flag)
+    supercap_flag = 1;
+}
+/*嘿嘿回来*/
 static void mode_chooce()
 {
   // 遥控器控制
@@ -142,21 +166,24 @@ static void mode_chooce()
     // LEDB_ON(); // BLUE LED
     // LEDR_OFF();
     // LEDG_OFF();
+    key_control();
     gyroscope();
   }
-  else if (rc_ctrl.rc.s[0] == 2)
+  else if (rc_ctrl.rc.s[0] == 2|| chassis_mode == 2)
   {
     // LEDG_ON(); // GREEN LED
     // LEDR_OFF();
     // LEDB_OFF();
+    key_control();
     RC_Move();
   }
-  else if (rc_ctrl.rc.s[0] == 3)
+  else if (rc_ctrl.rc.s[0] == 3 || chassis_mode == 1)
   {
     // LEDR_ON(); // RED LED
     // LEDB_OFF();
     // LEDG_OFF();
-  chassis_follow();
+    key_control();
+    chassis_follow();
 
   }
   // else
@@ -245,9 +272,9 @@ static void RC_Move(void)
   chassis.Wz = rc_ctrl.rc.ch[4]; // 旋转输入
 
   /*************记得加上线性映射***************/
-  chassis.Vx = map_range(chassis.Vx, RC_MIN, RC_MAX, motor_min, motor_max);
-  chassis.Vy = map_range(chassis.Vy, RC_MIN, RC_MAX, motor_min, motor_max);
-  chassis.Wz = map_range(chassis.Wz, RC_MIN, RC_MAX, motor_min, motor_max);
+  chassis.Vx = map_range(chassis.Vx, RC_MIN, RC_MAX, motor_min, motor_max)+key_x_fast - key_x_slow;
+  chassis.Vy = map_range(chassis.Vy, RC_MIN, RC_MAX, motor_min, motor_max)+ key_y_fast - key_y_slow;
+  chassis.Wz = map_range(chassis.Wz, RC_MIN, RC_MAX, motor_min, motor_max)+key_Wz_acw + key_Wz_cw;
 }
 
 // 小陀螺模式
@@ -258,8 +285,8 @@ static void gyroscope(void)
   // chassis.Vx = rc_ctrl.rc.ch[3]; // 前后输入
   // chassis.Vy = rc_ctrl.rc.ch[2]; // 左右输入
   /*************记得加上线性映射***************/
-  chassis.Vx = map_range(rc_ctrl.rc.ch[3], RC_MIN, RC_MAX, motor_min, motor_max);
-  chassis.Vy = map_range(rc_ctrl.rc.ch[2], RC_MIN, RC_MAX, motor_min, motor_max);
+  chassis.Vx = map_range(rc_ctrl.rc.ch[3], RC_MIN, RC_MAX, motor_min, motor_max)+ key_x_fast - key_x_slow;
+  chassis.Vy = map_range(rc_ctrl.rc.ch[2], RC_MIN, RC_MAX, motor_min, motor_max)+ key_y_fast - key_y_slow;
   // int16_t Temp_Vx = chassis.Vx;
   // int16_t Temp_Vy = chassis.Vy;
   //  relative_yaw = Yaw - INS_top.Yaw;//改变量 这里是下面的减去上面的 但是按照五号的来 需要下面的陀螺仪减去上面的c板
@@ -291,8 +318,8 @@ static void chassis_follow(void)
   chassis.Vy = rc_ctrl.rc.ch[2]; // 左右输入
   // chassis.Wz = rc_ctrl.rc.ch[4]; // 旋转输入
   /*************记得加上线性映射***************/
-  chassis.Vx = map_range(chassis.Vx, RC_MIN, RC_MAX, motor_min, motor_max);
-  chassis.Vy = map_range(chassis.Vy, RC_MIN, RC_MAX, motor_min, motor_max);
+  chassis.Vx = map_range(chassis.Vx, RC_MIN, RC_MAX, motor_min, motor_max)+ key_x_fast - key_x_slow;
+  chassis.Vy = map_range(chassis.Vy, RC_MIN, RC_MAX, motor_min, motor_max)+ key_y_fast - key_y_slow;
 
   // int16_t relative_yaw = Yaw - INS.Yaw_update; // 最新的减去上面的
  relative_yaw = Yaw_update-Yaw_top;
@@ -350,7 +377,19 @@ static void key_control(void)
     key_x_slow += KEY_START_OFFSET;
   else
     key_x_slow -= KEY_STOP_OFFSET;
+//*******************************************//
+//正转
+  if (shift_flag)
+    key_Wz_acw += KEY_START_OFFSET;
+  else
+    key_Wz_acw -= KEY_STOP_OFFSET;
 
+  // 反转
+  if (ctrl_flag)
+    key_Wz_cw -= KEY_START_OFFSET;
+  else
+    key_Wz_cw += KEY_STOP_OFFSET;
+    //
   if (key_x_fast > chassis_speed_max)
     key_x_fast = chassis_speed_max;
   if (key_x_fast < 0)
@@ -367,6 +406,15 @@ static void key_control(void)
     key_y_slow = chassis_speed_max;
   if (key_y_slow < 0)
     key_y_slow = 0;
+
+      if (key_Wz_acw > CHASSIS_WZ_MAX)
+    key_Wz_acw = CHASSIS_WZ_MAX;
+  if (key_Wz_acw < 0)
+    key_Wz_acw = 0;
+  if (key_Wz_cw < -CHASSIS_WZ_MAX)
+    key_Wz_cw = -CHASSIS_WZ_MAX;
+  if (key_Wz_cw > 0)
+    key_Wz_cw = 0;
 }
 
 static void detel_calc(fp32 *angle)
