@@ -186,7 +186,10 @@
         "../application/JY901.c",
         "../application/imu_task.c",
         "../application/exchange.c",
-        "<virtual_root>/Middlewares"
+        "<virtual_root>/Middlewares",
+        "../moudle/judge/judge.c",
+        "../moudle/algorithmLayer/CRC.c",
+        "../moudle/referee"
       ],
       "toolchain": "AC5",
       "compileConfig": {
@@ -352,7 +355,8 @@
           "../USB_DEVICE/Target",
           ".",
           "../Middlewares/ST/ARM/DSP/Inc",
-          "../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc"
+          "../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc",
+          "../moudle/referee"
         ],
         "libList": [],
         "sourceDirList": [],

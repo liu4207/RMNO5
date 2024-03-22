@@ -18,10 +18,12 @@
 
 #define RC_MAX 660
 #define RC_MIN -660
-#define motor_max 2000
-#define motor_min -2000
+#define motor_max 4000
+#define motor_min -4000
 #define angle_valve 5
 #define angle_weight 55
+#define CHASSIS_MAX_SPEED 8000
+
 float pid_yaw_angle_value[3];
 float pid_yaw_speed_value[3];
 chassis_t chassis;
@@ -49,6 +51,18 @@ extern float powerdata[4];
 extern uint16_t shift_flag;
 static int16_t key_x_fast, key_y_fast, key_x_slow, key_y_slow, key_Wz_acw, key_Wz_cw;
 uint8_t rc[18];
+// static referee_info_t *referee_data; // 用于获取裁判系统的数据
+
+//功率限制
+float Watch_Power_Max;                                                 // 限制值
+float Watch_Power;                                                     // 实时功率
+uint16_t Watch_Buffer;                                                    // 缓冲能量值
+double Chassis_pidout;                                                 // 输出值
+double Chassis_pidout_target;                                          // 目标值
+static double Scaling1 = 0, Scaling2 = 0, Scaling3 = 0, Scaling4 = 0;  // 比例
+float Klimit = 1;                                                      // 限制值
+float Plimit = 0;                                                      // 约束比例
+float Chassis_pidout_max;                                              // 输出值限制
 
 static void Chassis_Init();
 
@@ -83,6 +97,8 @@ static void yaw_correct();
 
 static void key_control();
 
+static void Chassis_Power_Limit(double Chassis_pidout_target_limit);                  // 底盘功率限制
+
 void Chassis_task(void const *pvParameters)
 {
   Chassis_Init();
@@ -114,13 +130,15 @@ void Chassis_task(void const *pvParameters)
 
 static void Chassis_Init()
 {
-  chassis.pid_parameter[0] = 20, chassis.pid_parameter[1] = 0.0, chassis.pid_parameter[2] = 5;
+  chassis.pid_parameter[0] = 30, chassis.pid_parameter[1] = 0.5, chassis.pid_parameter[2] = 5;
+    // referee_data = RefereeInit(&huart6); // 裁判系统初始化
+
 
   for (uint8_t i = 0; i < 4; i++)
   {
-    pid_init(&chassis.pid[i], chassis.pid_parameter, 6000, 6000); // init pid parameter, kp=40, ki=3, kd=0, output limit = 16384
+    pid_init(&chassis.pid[i], chassis.pid_parameter, 16384, 16384); // init pid parameter, kp=40, ki=3, kd=0, output limit = 16384
   }
-  pid_init(&supercap_pid, superpid, 3000, 3000); // init pid parameter, kp=40, ki=3, kd=0, output limit = 16384
+  // pid_init(&supercap_pid, superpid, 3000, 3000); // init pid parameter, kp=40, ki=3, kd=0, output limit = 16384
 
   chassis.Vx = 0, chassis.Vy = 0, chassis.Wz = 0;
 }
@@ -241,6 +259,7 @@ static void Motor_Speed_limiting(volatile int16_t *motor_speed, int16_t limit_sp
 // 电机电流控制
 static void chassis_current_give()
 {
+  Motor_Speed_limiting(chassis.speed_target, CHASSIS_MAX_SPEED); // 限制最大期望速度，输入参数是限制速度值(同比缩放)
 
   uint8_t i = 0;
 
@@ -248,6 +267,9 @@ static void chassis_current_give()
   {
     chassis.motor_info[i].set_current = pid_calc(&chassis.pid[i], chassis.motor_info[i].rotor_speed, chassis.speed_target[i]);
   }
+  
+  Chassis_Power_Limit(CHASSIS_MAX_SPEED * 4); // 限制底盘功率
+
   set_motor_current_chassis(0, chassis.motor_info[0].set_current, chassis.motor_info[1].set_current, chassis.motor_info[2].set_current, chassis.motor_info[3].set_current);
   // set_curruent(MOTOR_3508_0, hcan1, chassis.motor_info[0].set_current, chassis.motor_info[1].set_current, chassis.motor_info[2].set_current, chassis.motor_info[3].set_current);
 }
@@ -281,7 +303,7 @@ static void RC_Move(void)
 static void gyroscope(void)
 {
 
-  chassis.Wz = 1000;
+  chassis.Wz = 3000;
   // chassis.Vx = rc_ctrl.rc.ch[3]; // 前后输入
   // chassis.Vy = rc_ctrl.rc.ch[2]; // 左右输入
   /*************记得加上线性映射***************/
@@ -429,5 +451,77 @@ static void detel_calc(fp32 *angle)
   else if (*angle < -180)
   {
     *angle += 360;
+  }
+}
+static void Chassis_Power_Limit(double Chassis_pidout_target_limit)
+{
+  // 819.2/A，假设最大功率为120W，那么能够通过的最大电流为5A，取一个保守值：800.0 * 5 = 4000
+
+  Watch_Power_Max = Klimit;
+  // Watch_Power = referee_data->PowerHeatData.chassis_power; // powerd.chassis_power
+  // Watch_Buffer = referee_data->PowerHeatData.buffer_energy; // powerd.chassis_power_buffer
+Watch_Power =0;
+Watch_Buffer=60;
+  // Hero_chassis_power_buffer;//限制值，功率值，缓冲能量值，初始值是1，0，0
+  // get_chassis_power_and_buffer(&Power, &Power_Buffer, &Power_Max);//通过裁判系统和编码器值获取（限制值，实时功率，实时缓冲能量）
+
+  Chassis_pidout_max = 61536; // 32768，40，960			15384 * 4，取了4个3508电机最大电流的一个保守值
+
+  if (Watch_Power > 600)
+    Motor_Speed_limiting(chassis.speed_target, 4096); // 限制最大速度 ;//5*4*24;先以最大电流启动，后平滑改变，不知道为啥一开始用的Power>960,可以观测下这个值，看看能不能压榨缓冲功率
+  else
+  {
+    Chassis_pidout = (fabs(chassis.speed_target[0] - chassis.motor_info[0].rotor_speed) +
+                      fabs(chassis.speed_target[1] - chassis.motor_info[1].rotor_speed) +
+                      fabs(chassis.speed_target[2] - chassis.motor_info[2].rotor_speed) +
+                      fabs(chassis.speed_target[3] - chassis.motor_info[3].rotor_speed)); // fabs是求绝对值，这里获取了4个轮子的差值求和
+
+    //	Chassis_pidout_target = fabs(motor_speed_target[0]) + fabs(motor_speed_target[1]) + fabs(motor_speed_target[2]) + fabs(motor_speed_target[3]);
+
+    /*期望滞后占比环，增益个体加速度*/
+    if (Chassis_pidout)
+    {
+      Scaling1 = (chassis.speed_target[0] - chassis.motor_info[0].rotor_speed) / Chassis_pidout;
+      Scaling2 = (chassis.speed_target[1] - chassis.motor_info[1].rotor_speed) / Chassis_pidout;
+      Scaling3 = (chassis.speed_target[2] - chassis.motor_info[2].rotor_speed) / Chassis_pidout;
+      Scaling4 = (chassis.speed_target[3] - chassis.motor_info[3].rotor_speed) / Chassis_pidout; // 求比例，4个scaling求和为1
+    }
+    else
+    {
+      Scaling1 = 0.25, Scaling2 = 0.25, Scaling3 = 0.25, Scaling4 = 0.25;
+    }
+
+    /*功率满输出占比环，车总增益加速度*/
+    //		if(Chassis_pidout_target) Klimit=Chassis_pidout/Chassis_pidout_target;	//375*4 = 1500
+    //		else{Klimit = 0;}
+    Klimit = Chassis_pidout / Chassis_pidout_target_limit;
+
+    if (Klimit > 1)
+      Klimit = 1;
+    else if (Klimit < -1)
+      Klimit = -1; // 限制绝对值不能超过1，也就是Chassis_pidout一定要小于某个速度值，不能超调
+
+    /*缓冲能量占比环，总体约束*/
+    if (Watch_Buffer < 50 && Watch_Buffer >= 40)
+      Plimit = 0.9; // 近似于以一个线性来约束比例（为了保守可以调低Plimit，但会影响响应速度）
+    else if (Watch_Buffer < 40 && Watch_Buffer >= 35)
+      Plimit = 0.75;
+    else if (Watch_Buffer < 35 && Watch_Buffer >= 30)
+      Plimit = 0.5;
+    else if (Watch_Buffer < 30 && Watch_Buffer >= 20)
+      Plimit = 0.25;
+    else if (Watch_Buffer < 20 && Watch_Buffer >= 10)
+      Plimit = 0.125;
+    else if (Watch_Buffer < 10 && Watch_Buffer > 0)
+      Plimit = 0.05;
+    else
+    {
+      Plimit = 1;
+    }
+
+    chassis.motor_info[0].set_current = Scaling1 * (Chassis_pidout_max * Klimit) * Plimit; // 输出值
+    chassis.motor_info[1].set_current = Scaling2 * (Chassis_pidout_max * Klimit) * Plimit;
+    chassis.motor_info[2].set_current = Scaling3 * (Chassis_pidout_max * Klimit) * Plimit;
+    chassis.motor_info[3].set_current = Scaling4 * (Chassis_pidout_max * Klimit) * Plimit; /*同比缩放电流*/
   }
 }
