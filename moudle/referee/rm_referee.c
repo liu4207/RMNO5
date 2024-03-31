@@ -16,7 +16,7 @@
 #include "drv_usart.h"
 #include "task.h"
 #include "cmsis_os.h"
-
+#include "bsp_usart.h"
 #define RE_RX_BUFFER_SIZE 255u // 裁判系统接收缓冲区大小
 
 static USART_Instance *referee_usart_instance; // 裁判系统串口实例

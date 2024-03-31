@@ -59,6 +59,7 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
+static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -102,6 +103,10 @@ int main(void)
   MX_CAN1_Init();
   MX_CAN2_Init();
   MX_USART3_UART_Init();
+  MX_UART5_Init();
+
+  /* Initialize interrupts */
+  MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
       USART3_Init();
     CAN1_Init();
@@ -176,6 +181,26 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief NVIC Configuration.
+  * @retval None
+  */
+static void MX_NVIC_Init(void)
+{
+  /* DMA1_Stream7_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream7_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream7_IRQn);
+  /* DMA1_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+  /* USART3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(USART3_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(USART3_IRQn);
+  /* UART5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(UART5_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(UART5_IRQn);
 }
 
 /* USER CODE BEGIN 4 */

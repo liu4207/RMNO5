@@ -11,6 +11,8 @@
 #include "math.h"
 #include "arm_math.h"
 #include "struct_typedef.h"
+#include "rm_referee.h"
+#include "referee_protocol.h"
 
 #define KEY_START_OFFSET 10
 #define KEY_STOP_OFFSET 20
@@ -51,7 +53,7 @@ extern float powerdata[4];
 extern uint16_t shift_flag;
 static int16_t key_x_fast, key_y_fast, key_x_slow, key_y_slow, key_Wz_acw, key_Wz_cw;
 uint8_t rc[18];
-// static referee_info_t *referee_data; // 用于获取裁判系统的数据
+static referee_info_t *referee_data; // 用于获取裁判系统的数据
 
 //功率限制
 float Watch_Power_Max;                                                 // 限制值
@@ -131,7 +133,7 @@ void Chassis_task(void const *pvParameters)
 static void Chassis_Init()
 {
   chassis.pid_parameter[0] = 30, chassis.pid_parameter[1] = 0.5, chassis.pid_parameter[2] = 5;
-    // referee_data = RefereeInit(&huart6); // 裁判系统初始化
+    referee_data = RefereeInit(&huart5); // 裁判系统初始化
 
 
   for (uint8_t i = 0; i < 4; i++)
@@ -192,8 +194,8 @@ static void mode_chooce()
     // LEDG_ON(); // GREEN LED
     // LEDR_OFF();
     // LEDB_OFF();
-    key_control();
-    RC_Move();
+    // key_control();
+    // RC_Move();
   }
   else if (rc_ctrl.rc.s[0] == 3 || chassis_mode == 1)
   {
@@ -458,10 +460,10 @@ static void Chassis_Power_Limit(double Chassis_pidout_target_limit)
   // 819.2/A，假设最大功率为120W，那么能够通过的最大电流为5A，取一个保守值：800.0 * 5 = 4000
 
   Watch_Power_Max = Klimit;
-  // Watch_Power = referee_data->PowerHeatData.chassis_power; // powerd.chassis_power
-  // Watch_Buffer = referee_data->PowerHeatData.buffer_energy; // powerd.chassis_power_buffer
-Watch_Power =0;
-Watch_Buffer=60;
+  Watch_Power = referee_data->PowerHeatData.chassis_power; // powerd.chassis_power
+  Watch_Buffer = referee_data->PowerHeatData.buffer_energy; // powerd.chassis_power_buffer
+// Watch_Power =0;
+// Watch_Buffer=60;
   // Hero_chassis_power_buffer;//限制值，功率值，缓冲能量值，初始值是1，0，0
   // get_chassis_power_and_buffer(&Power, &Power_Buffer, &Power_Max);//通过裁判系统和编码器值获取（限制值，实时功率，实时缓冲能量）
 

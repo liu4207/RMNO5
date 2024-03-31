@@ -3,7 +3,9 @@
 
 #include "struct_typedef.h"
 #include "main.h"
-
+#include <stdint.h>
+#define TRUE 1
+#define FALSE 0
 unsigned char Get_CRC8_Check_Sum(unsigned char *pchMessage,unsigned int dwLength,unsigned char ucCRC8);
 unsigned int Verify_CRC8_Check_Sum(unsigned char *pchMessage, unsigned int dwLength);
 void Append_CRC8_Check_Sum(unsigned char *pchMessage, unsigned int dwLength);
