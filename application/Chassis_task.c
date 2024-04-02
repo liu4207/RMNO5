@@ -183,34 +183,22 @@ static void mode_chooce()
 
   if (rc_ctrl.rc.s[0] == 1)
   {
-    // LEDB_ON(); // BLUE LED
-    // LEDR_OFF();
-    // LEDG_OFF();
     key_control();
     gyroscope();
   }
   else if (rc_ctrl.rc.s[0] == 2|| chassis_mode == 2)
   {
-    // LEDG_ON(); // GREEN LED
-    // LEDR_OFF();
-    // LEDB_OFF();
     // key_control();
     // RC_Move();
   }
   else if (rc_ctrl.rc.s[0] == 3 || chassis_mode == 1)
   {
-    // LEDR_ON(); // RED LED
-    // LEDB_OFF();
-    // LEDG_OFF();
     key_control();
     chassis_follow();
 
   }
   // else
   // {
-  //   // LEDR_OFF();
-  //   // LEDB_OFF();
-  //   // LEDG_OFF();
   // }
 }
 

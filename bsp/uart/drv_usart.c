@@ -4,14 +4,14 @@
 #include  "rc_potocal.h"
 //#include  "judge.h"
 extern UART_HandleTypeDef huart3;
-extern UART_HandleTypeDef huart6;
-extern DMA_HandleTypeDef hdma_usart6_rx;
-extern DMA_HandleTypeDef hdma_usart6_tx;
+extern UART_HandleTypeDef huart5;
+extern DMA_HandleTypeDef hdma_usart5_rx;
+extern DMA_HandleTypeDef hdma_usart5_tx;
 #define USART3_RX_DATA_FRAME_LEN	(18u)	// 串口3数据帧长度
 #define USART3_RX_BUF_LEN			(USART3_RX_DATA_FRAME_LEN + 6u)	// 串口3接收缓冲区长度
-#define USART6_RX_BUF_LEN   (200)
+#define UART5_RX_BUF_LEN   (200)
 uint8_t usart3_dma_rxbuf[2][USART3_RX_BUF_LEN];
-volatile uint8_t judge_dma_buffer[2][USART6_RX_BUF_LEN] ={0}  ;
+volatile uint8_t judge_dma_buffer[2][UART5_RX_BUF_LEN] ={0}  ;
 uint8_t judge_receive_length=0;
 
 void USART3_Init(void)
@@ -38,7 +38,27 @@ void DRV_USART3_IRQHandler(UART_HandleTypeDef *huart)  //在stm32f4xx_it.c文件
 		uart_rx_idle_callback(huart); //空闲中断回调函数
 	}
 }
+void UART5_Init(void)     //开启空闲中断，配置DMA相关参数，使能DMA接收
+{
+	__HAL_UART_CLEAR_IDLEFLAG(&huart5);    //先清楚空闲中断标志位，防止开启中断时立马进入中断
+	__HAL_UART_ENABLE_IT(&huart5, UART_IT_IDLE);//使能空闲中断
 
+	SET_BIT(huart5.Instance->CR3, USART_CR3_DMAR); //将串口对应的DMA打开
+	DMAEx_MultiBufferStart_NoIT(huart5.hdmarx, \
+							    (uint32_t)&huart5.Instance->DR, \
+							    (uint32_t)judge_dma_buffer[0], \
+							    (uint32_t)judge_dma_buffer[1], \
+							    UART5_RX_BUF_LEN);  
+}
+
+void DRV_UART5_IRQHandler(UART_HandleTypeDef *huart)  //在stm32f4xx_it.c文件UART5_IRQHandler调用   
+{
+	if( __HAL_UART_GET_FLAG(huart, UART_FLAG_IDLE) &&
+		__HAL_UART_GET_IT_SOURCE(huart, UART_IT_IDLE))  //判断是否为空闲中断
+	{
+		uart_rx_idle_callback(huart);
+	}
+}
 // void USART6_Init(void)     //开启空闲中断，配置DMA相关参数，使能DMA接收
 // {
 // 	__HAL_UART_CLEAR_IDLEFLAG(&huart6);    //先清楚空闲中断标志位，防止开启中断时立马进入中断

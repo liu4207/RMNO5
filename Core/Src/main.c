@@ -108,6 +108,7 @@ int main(void)
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
+      UART5_Init();
       USART3_Init();
     CAN1_Init();
     CAN2_Init();
