@@ -17,7 +17,7 @@ uint8_t referee_tx_fifo = 0;            //正在使用的缓存池
 extern float powerdata[4];
 
 extern JUDGE_MODULE_DATA Judge_Hero;
-extern UART_HandleTypeDef huart6;
+extern UART_HandleTypeDef huart5;
 static uint8_t usart6_tx_dma_is_busy = 0;
 
 extern int8_t chassis_mode;
@@ -816,13 +816,13 @@ void usart6_tx_dma_enable(uint8_t *data, uint16_t len)
 {
     usart6_tx_dma_is_busy = 1;
 
-    HAL_UART_Transmit_DMA(&huart6, data, len);
+    HAL_UART_Transmit_DMA(&huart5, data, len);
 }
 
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef* huart)
 {
-    if (huart == &huart6)
+    if (huart == &huart5)
     {
         clear_usart6_tx_dma_busy_sign();
     }

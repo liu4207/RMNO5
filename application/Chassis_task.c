@@ -45,6 +45,9 @@ pid_struct_t supercap_pid;
 motor_info_t motor_info_chassis[10]; // 电机信息结构体
 fp32 superpid[3] = {120, 0.1, 0};
 
+extern float Hero_chassis_power;
+extern uint16_t Hero_chassis_power_buffer;
+
 int8_t chassis_mode;
 uint8_t supercap_flag = 0;         
 float relative_yaw;
@@ -133,7 +136,7 @@ void Chassis_task(void const *pvParameters)
 static void Chassis_Init()
 {
   chassis.pid_parameter[0] = 30, chassis.pid_parameter[1] = 0.5, chassis.pid_parameter[2] = 5;
-    referee_data = RefereeInit(&huart5); // 裁判系统初始化
+    // referee_data = RefereeInit(&huart5); // 裁判系统初始化
 
 
   for (uint8_t i = 0; i < 4; i++)
@@ -448,8 +451,10 @@ static void Chassis_Power_Limit(double Chassis_pidout_target_limit)
   // 819.2/A，假设最大功率为120W，那么能够通过的最大电流为5A，取一个保守值：800.0 * 5 = 4000
 
   Watch_Power_Max = Klimit;
-  Watch_Power = referee_data->PowerHeatData.chassis_power; // powerd.chassis_power
-  Watch_Buffer = referee_data->PowerHeatData.buffer_energy; // powerd.chassis_power_buffer
+    Watch_Power = Hero_chassis_power;
+  Watch_Buffer = Hero_chassis_power_buffer; // 限制值，功率值，缓冲能量值，初始值是1，0，0
+  // Watch_Power = referee_data->PowerHeatData.chassis_power; // powerd.chassis_power
+  // Watch_Buffer = referee_data->PowerHeatData.buffer_energy; // powerd.chassis_power_buffer
 // Watch_Power =0;
 // Watch_Buffer=60;
   // Hero_chassis_power_buffer;//限制值，功率值，缓冲能量值，初始值是1，0，0

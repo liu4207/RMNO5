@@ -110,19 +110,19 @@ static void uart_rx_idle_callback(UART_HandleTypeDef* huart)
 	}
   
   
-    // if(huart == &huart6)
-	// {
-	// 	__HAL_DMA_DISABLE(huart->hdmarx);
-	// 	judge_receive_length = USART6_RX_BUF_LEN - huart->hdmarx->Instance->NDTR;
+    if(huart == &huart5)
+	{
+		__HAL_DMA_DISABLE(huart->hdmarx);
+		judge_receive_length = UART5_RX_BUF_LEN - huart->hdmarx->Instance->NDTR;
 	
-	// 	if(huart->hdmarx->Instance->CR & DMA_SxCR_CT)
-	// 		huart->hdmarx->XferM1CpltCallback(huart->hdmarx);
-	// 	else
-	// 		huart->hdmarx->XferCpltCallback(huart->hdmarx);
-	// 	/* restart dma transmission */
-	// 	__HAL_DMA_SET_COUNTER(huart->hdmarx, USART6_RX_BUF_LEN);
-	// 	__HAL_DMA_ENABLE(huart->hdmarx);	  
-	// }
+		if(huart->hdmarx->Instance->CR & DMA_SxCR_CT)
+			huart->hdmarx->XferM1CpltCallback(huart->hdmarx);
+		else
+			huart->hdmarx->XferCpltCallback(huart->hdmarx);
+		/* restart dma transmission */
+		__HAL_DMA_SET_COUNTER(huart->hdmarx, UART5_RX_BUF_LEN);
+		__HAL_DMA_ENABLE(huart->hdmarx);	  
+	}
 }
 
 
@@ -136,11 +136,11 @@ static void dma_m0_rxcplt_callback(DMA_HandleTypeDef *hdma)
 				USART3_rxDataHandler(usart3_dma_rxbuf[0]);
 		}
 			
-		// else if(hdma == huart6.hdmarx)
-		// {
-		// 	hdma->Instance->CR |= (uint32_t)(DMA_SxCR_CT);	 // 将当前目标内存设置为Memory1
-		// 	JUDGE_Receive(judge_dma_buffer[0],judge_receive_length);
-		// }
+		else if(hdma == huart5.hdmarx)
+		{
+			hdma->Instance->CR |= (uint32_t)(DMA_SxCR_CT);	 // 将当前目标内存设置为Memory1
+			JUDGE_Receive(judge_dma_buffer[0],judge_receive_length);
+		}
 
 }
 
@@ -154,11 +154,11 @@ static void dma_m1_rxcplt_callback(DMA_HandleTypeDef *hdma)
 		USART3_rxDataHandler(usart3_dma_rxbuf[1]);
 	}
 	
-	// else if(hdma == huart6.hdmarx)
-	// {
-	// 	hdma->Instance->CR &=~ (uint32_t)(DMA_SxCR_CT);	 // 将当前目标内存设置为Memory0
-	// 	JUDGE_Receive(judge_dma_buffer[1],judge_receive_length);
-	// }
+	else if(hdma == huart5.hdmarx)
+	{
+		hdma->Instance->CR &=~ (uint32_t)(DMA_SxCR_CT);	 // 将当前目标内存设置为Memory0
+		JUDGE_Receive(judge_dma_buffer[1],judge_receive_length);
+	}
 }
 
 

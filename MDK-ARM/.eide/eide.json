@@ -182,15 +182,14 @@
       "excludeList": [
         "../moudle/algorithmLayer/pid.c",
         "../application/super cap.c",
-        "../application/UI_task.c",
         "../application/JY901.c",
         "../application/imu_task.c",
         "../application/exchange.c",
         "<virtual_root>/Middlewares",
-        "../moudle/judge/judge.c",
-        "../moudle/algorithmLayer/CRC.c",
-        "../moudle/algorithmLayer",
-        "../moudle/judge"
+        "../moudle/referee/referee_task.c",
+        "../moudle/referee/referee_UI.c",
+        "../moudle/VideoTransmitter",
+        "../moudle/referee"
       ],
       "toolchain": "AC5",
       "compileConfig": {

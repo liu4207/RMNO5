@@ -28,6 +28,7 @@
 #include "Chassis_task.h"
 #include "rc_potocal.h"
 #include "stm32f4xx_it.h"
+#include "UI_task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,6 +49,7 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 osThreadId Chassis_taskHandle;
+osThreadId UI_taskHandle;
 
 /* USER CODE END Variables */
 osThreadId TEMP_IMUHandle;
@@ -117,6 +119,9 @@ void MX_FREERTOS_Init(void) {
   Chassis_taskHandle = osThreadCreate(osThread(Chassistask), NULL);
   osThreadDef(LED, led_task, osPriorityNormal, 0, 128);
  LEDHandle      = osThreadCreate(osThread(LED), NULL);
+
+   osThreadDef(UItask, UI_Task, osPriorityRealtime, 0, 1024);
+  UI_taskHandle = osThreadCreate(osThread(UItask), NULL);
   /* USER CODE END RTOS_THREADS */
 
 }
